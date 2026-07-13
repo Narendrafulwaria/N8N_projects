@@ -1,1 +1,1 @@
-# N8N_projects
+# N8N_project_resume_analyzer
