@@ -1,0 +1,769 @@
+{
+  "name": "Resume_Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "path": "resume-upload",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryPropertyName": "resume"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -3440,
+        16
+      ],
+      "id": "544a4088-2059-483d-924b-73a2c7507e0e",
+      "name": "Webhook",
+      "webhookId": "7391919b-b51a-4a77-8bcf-5b9edc0de14d"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        48,
+        0
+      ],
+      "id": "2c7b0885-f824-4d15-b556-b356cf1e1462",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nconst text = $json.text;\n\nreturn [{\n  cleanedText: text\n    .replace(/\\n+/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3040,
+        16
+      ],
+      "id": "a746e98a-e567-479f-b7fb-1ebdbd31c1ed",
+      "name": "Code in JavaScript(for clean text)"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "resume1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -3232,
+        16
+      ],
+      "id": "57f80957-3fba-40a0-b463-07bcb226373d",
+      "name": "Extract from File(pdf to text)"
+    },
+    {
+      "parameters": {
+        "tableId": "users",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $('Webhook').item.json.body.email }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2864,
+        0
+      ],
+      "id": "9aef0348-208c-4784-9513-d919a421a9c0",
+      "name": "Create a row(supabase users table)",
+      "credentials": {
+        "supabaseApi": {
+          "id": "HuyVZH4KJsqGir7l",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "resumes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "resume_name",
+              "fieldValue": "={{ $('Webhook').item.json.body.filename }}"
+            },
+            {
+              "fieldId": "extracted_text",
+              "fieldValue": "={{ $('Code in JavaScript(for clean text)').item.json.cleanedText }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2656,
+        0
+      ],
+      "id": "5ce5091f-dc89-4d22-978f-1beba023a058",
+      "name": "Create a row1(supabase resumes table)",
+      "credentials": {
+        "supabaseApi": {
+          "id": "HuyVZH4KJsqGir7l",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze the resume below.\n\nReturn ONLY valid JSON.\n\n{\n  \"skills\": [],\n  \"education\": \"\",\n  \"experience_years\": \"\",\n  \"projects\": [],\n  \"industry\": \"\",\n  \"seniority\": \"\"\n}\n\nResume:\n{{ $json.extracted_text }}\n\nReturn ONLY valid JSON.\n\nDo not include:\n- ```json\n- ```\n- Any explanation\n- Any text before or after JSON\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -2448,
+        0
+      ],
+      "id": "1bb2b4b6-a5c2-4334-865d-a31ac78bea80",
+      "name": "Resume_read_analyse",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "tjuDxo5MOFqJVJmX",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nconst result = JSON.parse($input.first().json.content.parts[0].text);\n\nreturn [result];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2192,
+        -256
+      ],
+      "id": "68da85a8-f77d-4988-9978-dcb4d4b77a61",
+      "name": "Code in JavaScript(Parse _resume)"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Act as an ATS system.\n\nScore this resume from 0-100.\n\nReturn:\n\n{\n  \"ats_score\": 0,\n   \"strengths\": [],\n  \"weaknesses\": []\n  \n}\n\nResume:\n{{ $('Create a row1(supabase resumes table)').item.json.extracted_text }}\nReturn ONLY valid JSON.\n\nDo not include:\n- ```json\n- ```\n- Any explanation\n- Any text before or after JSON"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -2048,
+        16
+      ],
+      "id": "e39cabb1-7c40-4389-bf0b-8895aa84074c",
+      "name": "Extract_ats_strenghts_weakness",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "tjuDxo5MOFqJVJmX",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nconst result = JSON.parse($input.first().json.content.parts[0].text);\n\nreturn [result];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1808,
+        -208
+      ],
+      "id": "6f091880-afb9-41f2-ae80-f081f35fd5cf",
+      "name": "Code in JavaScript(parse_ats_strengths_weakness"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Based on input from message model7,\nrecommend top 5 job roles.\n\nReturn JSON:\n\n{\n \"roles\":[\n   {\n     \"role\":\"\",\n     \"match_score\":0\n   }\n ]\n}\n\nmatch_score is out of 100\n\nReturn ONLY valid JSON.\n\nDo not include:\n- ```json\n- ```\n- Any explanation\n- Any text before or after JSON"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -1696,
+        48
+      ],
+      "id": "a8029e9b-4a92-4da5-a542-288de68c3f0c",
+      "name": "Extract_roles_matchscore",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "tjuDxo5MOFqJVJmX",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nconst result = JSON.parse($input.first().json.content.parts[0].text);\n\nreturn [result];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1456,
+        -192
+      ],
+      "id": "fc90faaa-4adb-488f-bf3e-390016b0e8de",
+      "name": "Code in JavaScript(parse_role_matchscore)"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=For the following roles,\nprovide typical salary ranges in India.\n\nRoles:\n\nreturn\n{\n \"roles\":[\n   {\n     \"role\":\"\",\n     \"salary_range\":0\n   }\n ]\n}\n\n\nReturn ONLY valid JSON.\n\nDo not include:\n- ```json\n- ```\n- Any explanation\n- Any text before or after JSON\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -1344,
+        32
+      ],
+      "id": "957b3368-d539-4ffd-8b16-bb9e7a3d701b",
+      "name": "Extract_roles_salary_range",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "tjuDxo5MOFqJVJmX",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nconst result = JSON.parse($input.first().json.content.parts[0].text);\n\nreturn [result];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1104,
+        -208
+      ],
+      "id": "76be0870-39cb-4b75-be5e-05f7fc74194e",
+      "name": "Code in JavaScript(parse_role_salary)"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=For each recommended role,\nidentify missing skills.\n\nCurrent Skills:\n{{ $('Code in JavaScript(Parse _resume)').item.json.skills }}\n\nRoles:\n{{ $('Code in JavaScript(parse_role_matchscore)').item.json.roles }}\n\nReturn missing skills for each role\n\nReturn JSON.\n\nReturn ONLY valid JSON.\n\nDo not include:\n- ```json\n- ```\n- Any explanation\n- Any text before or after JSON"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -992,
+        32
+      ],
+      "id": "d550b657-465d-4c66-8c8e-d9f93f7da3fe",
+      "name": "Extract_roles_missingskills",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "tjuDxo5MOFqJVJmX",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nconst result = JSON.parse($input.first().json.content.parts[0].text);\n\nreturn [result];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        -192
+      ],
+      "id": "c4074e27-e0ef-4042-b21a-a47efc9e521d",
+      "name": "Code in JavaScript(parse_role_missingskills)"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an experienced career coach, ATS expert, and hiring manager.\n\nAnalyze the candidate's profile using the information below and generate personalized recommendations for improving their chances of getting shortlisted for their target roles.\n\nCandidate Information:\n\nSkills:\n{{ $('Code in JavaScript(Parse _resume)').item.json.skills }}\n\nEducation:\n{{ $('Code in JavaScript(Parse _resume)').item.json.education }}\n\nExperience:\n{{ $('Code in JavaScript(Parse _resume)').item.json.experience_years }}\n\nProjects:\n{{ $('Code in JavaScript(Parse _resume)').item.json.projects }}\n\nRecommended Roles:\n{{ $('Code in JavaScript(parse_role_matchscore)').item.json.roles }}\n\nMissing Skills:\n{{ $json.roles }}\nATS Score:\n{{ $('Code in JavaScript(parse_ats_strengths_weakness').item.json.ats_score }}\n\nInstructions:\n1. Provide specific and actionable recommendations.\n2. Focus on skills, projects, certifications, resume quality, ATS optimization, and career growth.\n3. Prioritize recommendations by impact.\n4. Avoid generic advice.\n5. Keep recommendations concise and practical.\n6. Return ONLY valid JSON.\n\nOutput Format:\n\n{\n  \"recommendations\": [\n    {\n      \"priority\": \"High\",\n      \"category\": \"Skills\",\n      \"recommendation\": \"\"\n    },\n    {\n      \"priority\": \"High\",\n      \"category\": \"Projects\",\n      \"recommendation\": \"\"\n    },\n    {\n      \"priority\": \"Medium\",\n      \"category\": \"Certifications\",\n      \"recommendation\": \"\"\n    },\n    {\n      \"priority\": \"Medium\",\n      \"category\": \"Resume\",\n      \"recommendation\": \"\"\n    },\n    {\n      \"priority\": \"Low\",\n      \"category\": \"Career Growth\",\n      \"recommendation\": \"\"\n    }\n  ]\n}\n\nReturn ONLY valid JSON.\n\nDo not include:\n- ```json\n- ```\n- Any explanation\n- Any text before or after JSON"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -640,
+        32
+      ],
+      "id": "56f510ed-01c7-4f76-9f62-10b6fa8cd7f2",
+      "name": "Give_recommendations",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "tjuDxo5MOFqJVJmX",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nconst result = JSON.parse($input.first().json.content.parts[0].text);\n\nreturn [result];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        -224
+      ],
+      "id": "bf2ed1c0-5bcd-4541-98b8-e4eb746c62cd",
+      "name": "Code in JavaScript(parse_recommendations)"
+    },
+    {
+      "parameters": {
+        "tableId": "analysis_result",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "resume_id",
+              "fieldValue": "={{ $('Create a row1(supabase resumes table)').item.json.id }}"
+            },
+            {
+              "fieldId": "ats_score",
+              "fieldValue": "={{ $('Code in JavaScript(parse_ats_strengths_weakness').item.json.ats_score }}"
+            },
+            {
+              "fieldId": "job_roles",
+              "fieldValue": "={{ $('Code in JavaScript(parse_role_matchscore)').item.json.roles }}"
+            },
+            {
+              "fieldId": "salary_estimates",
+              "fieldValue": "={{ $('Code in JavaScript(parse_role_salary)').item.json.roles }}"
+            },
+            {
+              "fieldId": "skills_found",
+              "fieldValue": "={{ $('Code in JavaScript(Parse _resume)').item.json.skills }}"
+            },
+            {
+              "fieldId": "missing_skills",
+              "fieldValue": "={{ $('Code in JavaScript(parse_role_missingskills)').item.json.roles }}"
+            },
+            {
+              "fieldId": "recommendations",
+              "fieldValue": "={{ $json.recommendations }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        16
+      ],
+      "id": "7816a4e6-da35-4815-8ea3-a2dc80ac239e",
+      "name": "Create a row(analysis_table)",
+      "credentials": {
+        "supabaseApi": {
+          "id": "HuyVZH4KJsqGir7l",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nreturn [\n  {\n    json: {\n      status: \"success\",\n      ats_score:$('Code in JavaScript(parse_ats_strengths_weakness').first().json.ats_score ,\n      strengths: $('Code in JavaScript(parse_ats_strengths_weakness').first().json.strengths,\n      weaknesses:$('Code in JavaScript(parse_ats_strengths_weakness').first().json.weaknesses,\n      skills: $input.first().json.skills_found,\n      recommended_roles:$('Code in JavaScript(parse_role_matchscore)').first().json.roles,\n      Missing_skills:$('Code in JavaScript(parse_role_missingskills)').first().json.recommended_roles,\n      Salary_estimate:$('Code in JavaScript(parse_role_salary)').first().json.roles,\n      recommendations: $('Code in JavaScript(parse_recommendations)').first().json.recommendations\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -224
+      ],
+      "id": "c8ff663d-9d11-4abd-9cd0-490f12786233",
+      "name": "Code in JavaScript(O/p_in _particular_format)"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "narendra97.app.n8n.cloud",
+            "user-agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36",
+            "content-length": "7659",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "accept-language": "en-GB,en;q=0.9",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "2401:4900:c41c:1484:740e:25ff:feaa:254f",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "IN",
+            "cf-ray": "a16ca1385bf43d3f-FRA",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "multipart/form-data; boundary=----WebKitFormBoundaryG54WbrrPFxbNEqBS",
+            "origin": "https://profile-perspectivizer.lovable.app",
+            "priority": "u=1, i",
+            "referer": "https://profile-perspectivizer.lovable.app/",
+            "sec-ch-ua": "\"Google Chrome\";v=\"149\", \"Chromium\";v=\"149\", \"Not)A;Brand\";v=\"24\"",
+            "sec-ch-ua-mobile": "?1",
+            "sec-ch-ua-platform": "\"Android\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "2401:4900:c41c:1484:740e:25ff:feaa:254f, 162.158.111.4",
+            "x-forwarded-host": "narendra97.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-72-76dbf6cf96-28n4z",
+            "x-is-trusted": "yes",
+            "x-real-ip": "2401:4900:c41c:1484:740e:25ff:feaa:254f"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "filename": "Narendra_Fulwaria_Upd_Resume.pdf",
+            "name": "Narendra",
+            "email": "narendrafulwaria111@gmail.com"
+          },
+          "webhookUrl": "https://narendra97.app.n8n.cloud/webhook/resume-upload",
+          "executionMode": "production"
+        },
+        "binary": {
+          "resume0": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "Narendra_Fulwaria_Upd_Resume.pdf",
+            "id": "filesystem-v2:workflows/GipN2GB6PzfYtniG/executions/146/binary_data/d77791ec-bad2-4091-a552-54ea2709db34",
+            "fileSize": "3.47 kB",
+            "bytes": 3467
+          },
+          "resume1": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "Narendra_Fulwaria_Upd_Resume.pdf",
+            "id": "filesystem-v2:workflows/GipN2GB6PzfYtniG/executions/146/binary_data/108f9cbd-e1d0-4a40-a5b9-28f2c6691359",
+            "fileSize": "3.47 kB",
+            "bytes": 3467
+          }
+        },
+        "pairedItem": {
+          "item": 0,
+          "input": 1
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Extract from File(pdf to text)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript(for clean text)": {
+      "main": [
+        [
+          {
+            "node": "Create a row(supabase users table)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File(pdf to text)": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript(for clean text)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row(supabase users table)": {
+      "main": [
+        [
+          {
+            "node": "Create a row1(supabase resumes table)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row1(supabase resumes table)": {
+      "main": [
+        [
+          {
+            "node": "Resume_read_analyse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume_read_analyse": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript(Parse _resume)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript(Parse _resume)": {
+      "main": [
+        [
+          {
+            "node": "Extract_ats_strenghts_weakness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_ats_strenghts_weakness": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript(parse_ats_strengths_weakness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript(parse_ats_strengths_weakness": {
+      "main": [
+        [
+          {
+            "node": "Extract_roles_matchscore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_roles_matchscore": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript(parse_role_matchscore)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript(parse_role_matchscore)": {
+      "main": [
+        [
+          {
+            "node": "Extract_roles_salary_range",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_roles_salary_range": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript(parse_role_salary)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript(parse_role_salary)": {
+      "main": [
+        [
+          {
+            "node": "Extract_roles_missingskills",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_roles_missingskills": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript(parse_role_missingskills)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript(parse_role_missingskills)": {
+      "main": [
+        [
+          {
+            "node": "Give_recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Give_recommendations": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript(parse_recommendations)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript(parse_recommendations)": {
+      "main": [
+        [
+          {
+            "node": "Create a row(analysis_table)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row(analysis_table)": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript(O/p_in _particular_format)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript(O/p_in _particular_format)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9d06fbe0-486a-4e4f-9842-b00e2a40224b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6d9083c1cac6722171d0ac0fd1d2c7f70a10f345577a00a0e330513e06d9ae39"
+  },
+  "nodeGroups": [],
+  "id": "GipN2GB6PzfYtniG",
+  "tags": []
+}
